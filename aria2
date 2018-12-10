@@ -1,0 +1,109 @@
+#!/bin/bash
+DAEMON=/usr/bin/aria2c
+CONF=/root/.config/aria2/aria2.conf	 
+
+
+pid(){
+PID=`pgrep -f "$DAEMON -D --conf-path=$CONF"`
+}
+
+
+start(){
+	pid
+	if [ -z "$PID" ]; then
+		echo "Starting aria2 rpc daemon"
+		$DAEMON -D --conf-path=$CONF
+	else
+		echo "Aria2 rpc daemon is already running, PID=$PID"
+	fi
+	
+}
+
+stop(){
+	pid
+	if [ -z "$PID" ]; then
+		echo "Aria2 rpc daemon is not running! Nothing to stop."
+	else
+		echo "Shutting down aria2 rpc daemon..."
+		kill -15 $PID
+	fi
+}
+restart(){
+	stop
+	sleep 1
+	start
+}
+
+case "$1" in
+	start)
+		start
+		;;
+
+	stop)
+		stop
+		;;
+
+	restart)
+		restart
+		;;
+
+	cleanup)
+		stop
+		DIR=`grep dir "$CONF"  |grep -v \# |cut -d '=' -f 2 |head -n 1`
+		SESSION=`grep session "$CONF"|cut -d '=' -f 2 |head -n 1`
+
+		list=`wget -qO- https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt|awk NF|sed ":a;N;s/\n/,/g;ta"` 
+		sed -i "s@bt-tracker.*@bt-tracker=$list@g" $CONF
+	
+		rm -f "$DIR/*.torrent"
+		rm -f "$SESSION"
+		touch "$SESSION"
+		chmod 644 "$SESSION"
+		files=`ls -1 $DIR/*.aria2`
+		IFS=$'\n' 
+		for aria2 in $files
+		do
+			file=`echo $aria2 |sed 's/\.aria2//'`
+			rm -f $aria2
+			rm -rf  $file
+		done
+		unset IFS
+		sleep 1
+		start
+		;;
+		
+	update)
+		oldlist=`grep bt-tracker $CONF`
+		list=`wget -qO- https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt|awk NF|sed ":a;N;s/\n/,/g;ta"`
+		if [ -z "`grep "bt-tracker" $CONF`" ]; then
+			sed -i '$a bt-tracker='${list} $CONF
+			echo add......
+		else
+				if [ "$oldlist" = bt-tracker\="$list" ]; then
+						echo No tracker update needed
+						echo
+				else
+						sed -i "s@bt-tracker.*@bt-tracker=$list@g" $CONF
+						echo
+						echo Update tracker......
+						restart
+						
+				fi
+		fi
+		;;
+	
+	status)
+		pid
+		if [ -z "$PID" ]; then
+			echo "Aria2 rpc daemon is not running!"
+		else
+			echo "Aria2 rpc daemon is running, PID=$PID"
+		fi
+		;;
+	
+	*)
+		echo "Usage: /etc/init.d/aria2 {start|stop|restart|cleanup|update}"
+		exit 1
+		;;
+esac
+exit
