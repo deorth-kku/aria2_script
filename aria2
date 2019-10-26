@@ -6,7 +6,9 @@ CONF=/root/.config/aria2/aria2.conf
 pid(){
 PID=`pgrep -f "$DAEMON -D --conf-path=$CONF"`
 }
-
+getconf(){
+	grep $1 "$CONF"  |grep -v \# |cut -d '=' -f 2 |head -n 1
+}
 
 start(){
 	pid
@@ -30,7 +32,11 @@ stop(){
 }
 restart(){
 	stop
-	sleep 1
+	while [ -n "$PID" ]
+	do
+		pid
+		sleep 1
+	done
 	start
 }
 
@@ -49,13 +55,10 @@ case "$1" in
 
 	cleanup)
 		stop
-		DIR=`grep dir "$CONF"  |grep -v \# |cut -d '=' -f 2 |head -n 1`
-		SESSION=`grep session "$CONF"|cut -d '=' -f 2 |head -n 1`
-
-		list=`wget -qO- https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt|awk NF|sed ":a;N;s/\n/,/g;ta"` 
-		sed -i "s@bt-tracker.*@bt-tracker=$list@g" $CONF
+		DIR=`getconf dir`
+		SESSION=`getconf session`
 	
-		rm -f "$DIR/*.torrent"
+		rm -f $DIR/*.torrent
 		rm -f "$SESSION"
 		touch "$SESSION"
 		chmod 644 "$SESSION"
@@ -73,20 +76,22 @@ case "$1" in
 		;;
 		
 	update)
-		oldlist=`grep bt-tracker $CONF`
+		oldlist=`getconf bt-tracker`
 		list=`wget -qO- https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt|awk NF|sed ":a;N;s/\n/,/g;ta"`
-		if [ -z "`grep "bt-tracker" $CONF`" ]; then
+		if [ -z "$oldlist" ]; then
 			sed -i '$a bt-tracker='${list} $CONF
 			echo add......
 		else
-				if [ "$oldlist" = bt-tracker\="$list" ]; then
-						echo No tracker update needed
-						echo
+				if [ "$oldlist" = "$list" ]; then
+						echo No tracker update is needed
 				else
 						sed -i "s@bt-tracker.*@bt-tracker=$list@g" $CONF
-						echo
+						port=`getconf rpc-listen-port`
+						passwd=`getconf rpc-secret`
+						json={\"jsonrpc\":\"2.0\",\"method\":\"aria2.changeGlobalOption\",\"id\":\"ZGVvcnRo\",\"params\":[\"token:$passwd\",{\"bt-tracker\":\"$list\"}]}
+						curl -X POST -d $json http://127.0.0.1:$port/jsonrpc  >/dev/null
 						echo Update tracker......
-						restart
+						
 						
 				fi
 		fi
