@@ -7,7 +7,7 @@ pid(){
 PID=`pgrep -f "$DAEMON -D --conf-path=$CONF"`
 }
 getconf(){
-	grep $1 "$CONF"  |grep -v \# |cut -d '=' -f 2 |head -n 1
+	grep "$1" "$CONF"  |grep -v \# |cut -d '=' -f 2 |head -n 1
 }
 
 start(){
