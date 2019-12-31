@@ -1,0 +1,15 @@
+[Unit] 
+Description=aria2 rpc daemon 
+Documentation=man:aria2
+After=network.target
+
+[Service]
+ExecStart=/etc/init.d/aria2 start
+#ExecStop=/etc/init.d/aria2 stop
+Type=forking
+KillMode=mixed
+Restart=on-failure
+RestartSec=42s
+ 
+[Install]
+WantedBy=multi-user.target

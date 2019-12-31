@@ -1,4 +1,12 @@
 #!/bin/bash
+### BEGIN INIT INFO
+# Provides:          aria2
+# Required-Start:    $all
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: aria2 daemon
+### END INIT INFO
 DAEMON=/usr/bin/aria2c
 CONF=/root/.config/aria2/aria2.conf	 
 
