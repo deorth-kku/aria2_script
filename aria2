@@ -15,7 +15,7 @@ pid(){
 PID=`pgrep -f "$DAEMON -D --conf-path=$CONF"`
 }
 getconf(){
-	grep "$1" "$CONF"  |grep -v \# |cut -d '=' -f 2 |head -n 1
+	grep "$1" "$CONF"  |grep -v \# |cut -d '=' -f 2 |tail -n 1
 }
 
 start(){
@@ -85,8 +85,12 @@ case "$1" in
 		
 	update)
 		oldlist=`getconf bt-tracker`
+		export https_proxy=http://127.0.0.1:8123/
 		list=`wget -qO- https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt|awk NF|sed ":a;N;s/\n/,/g;ta"`
-		if [ -z "$oldlist" ]; then
+		if [ -z "$list" ]; then
+			echo cannot get bt-tracker list,exiting...
+			exit
+		elif [ -z "$oldlist" ]; then
 			sed -i '$a bt-tracker='${list} $CONF
 			echo add......
 		else
